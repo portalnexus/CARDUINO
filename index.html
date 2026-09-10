@@ -44,7 +44,7 @@
     <div id="container">
         <!-- Área onde os blocos serão arrastados -->
         <div id="blocklyDiv"></div>
-        
+
         <!-- Área onde o código Arduino final será exibido -->
         <div>
             <h3>Código Arduino Gerado:</h3>
@@ -58,6 +58,7 @@
             <block type="mover_frente"></block>
             <block type="mover_tras"></block>
             <block type="parar_motores"></block>
+            <block type="controlar_motor"></block>
         </category>
         <category name="Tempo" colour="#a55b5b">
             <block type="esperar_tempo"></block>
@@ -93,6 +94,19 @@
             }
         };
 
+        Blockly.Blocks['controlar_motor'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField("⚙️ Motor")
+                    .appendField(new Blockly.FieldDropdown([["Esquerdo","ESQUERDO"], ["Direito","DIREITO"]]), "MOTOR")
+                    .appendField("para")
+                    .appendField(new Blockly.FieldDropdown([["Frente","FRENTE"], ["Trás","TRAS"], ["Parar","PARAR"]]), "ACAO");
+                this.setPreviousStatement(true, null);
+                this.setNextStatement(true, null);
+                this.setColour(180);
+            }
+        };
+
         Blockly.Blocks['esperar_tempo'] = {
             init: function() {
                 this.appendDummyInput()
@@ -107,23 +121,60 @@
 
         // 2. GERADORES DE CÓDIGO ARDUINO PARA CADA BLOCO
         const arduinoGenerator = new Blockly.Generator('ARDUINO');
-        
+
         // Define as regras de indentação e espaçamento
         arduinoGenerator.ORDER_ATOMIC = 0;
 
-        arduinoGenerator['mover_frente'] = function(block) {
+        // Define como os blocos conectados se juntam no código final
+        arduinoGenerator.scrub_ = function(block, code, opt_thisOnly) {
+            const nextBlock = block.nextConnection && block.nextConnection.targetBlock();
+            const nextCode = opt_thisOnly ? '' : arduinoGenerator.blockToCode(nextBlock);
+            return code + nextCode;
+        };
+
+        arduinoGenerator.forBlock['mover_frente'] = function(block) {
             return "  // Mover para frente\n  digitalWrite(8, HIGH);\n  digitalWrite(9, LOW);\n  digitalWrite(10, HIGH);\n  digitalWrite(11, LOW);\n";
         };
 
-        arduinoGenerator['mover_tras'] = function(block) {
+        arduinoGenerator.forBlock['mover_tras'] = function(block) {
             return "  // Mover para tras\n  digitalWrite(8, LOW);\n  digitalWrite(9, HIGH);\n  digitalWrite(10, LOW);\n  digitalWrite(11, HIGH);\n";
         };
 
-        arduinoGenerator['parar_motores'] = function(block) {
+        arduinoGenerator.forBlock['parar_motores'] = function(block) {
             return "  // Parar motores\n  digitalWrite(8, LOW);\n  digitalWrite(9, LOW);\n  digitalWrite(10, LOW);\n  digitalWrite(11, LOW);\n";
         };
 
-        arduinoGenerator['esperar_tempo'] = function(block) {
+        arduinoGenerator.forBlock['controlar_motor'] = function(block) {
+            const motor = block.getFieldValue('MOTOR');
+            const acao = block.getFieldValue('ACAO');
+
+            let pino1, pino2;
+            if (motor === 'ESQUERDO') {
+                pino1 = 8;
+                pino2 = 9;
+            } else {
+                pino1 = 10;
+                pino2 = 11;
+            }
+
+            let estado1, estado2;
+            if (acao === 'FRENTE') {
+                estado1 = "HIGH";
+                estado2 = "LOW";
+            } else if (acao === 'TRAS') {
+                estado1 = "LOW";
+                estado2 = "HIGH";
+            } else {
+                estado1 = "LOW";
+                estado2 = "LOW";
+            }
+
+            return "  // Motor " + motor + " - " + acao + "\n" +
+                   "  digitalWrite(" + pino1 + ", " + estado1 + ");\n" +
+                   "  digitalWrite(" + pino2 + ", " + estado2 + ");\n";
+        };
+
+        arduinoGenerator.forBlock['esperar_tempo'] = function(block) {
             const segundos = block.getFieldValue('SEGUNDOS');
             const milissegundos = segundos * 1000;
             return "  delay(" + milissegundos + ");\n";
@@ -139,12 +190,12 @@
         function atualizarCodigo() {
             // Estrutura básica do Arduino que envelopa os blocos colocados no loop
             let codigoDefinicoes = "// Pinos configurados automaticamente: 8, 9, 10, 11\nvoid setup() {\n  pinMode(8, OUTPUT);\n  pinMode(9, OUTPUT);\n  pinMode(10, OUTPUT);\n  pinMode(11, OUTPUT);\n}\n\nvoid loop() {\n";
-            
+
             // Gera o código a partir dos blocos arrastados
             let codigoBlocos = arduinoGenerator.workspaceToCode(workspace);
-            
+
             let codigoFinal = codigoDefinicoes + codigoBlocos + "}";
-            
+
             document.getElementById('codeDiv').innerText = codigoFinal;
         }
 
