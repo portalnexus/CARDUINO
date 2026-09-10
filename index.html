@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Criador de código para Carduino</title>
+    <!-- Injeção das bibliotecas do Google Blockly -->
+    <script src="https://unpkg.com"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 10px;
+            background-color: #f4f4f9;
+        }
+        h1 { color: #333; }
+        #container {
+            display: flex;
+            gap: 20px;
+        }
+        #blocklyDiv {
+            height: 480px;
+            width: 60%;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        #codeDiv {
+            width: 35%;
+            height: 480px;
+            background: #282c34;
+            color: #abb2bf;
+            padding: 15px;
+            border-radius: 4px;
+            box-sizing: border-box;
+            white-space: pre-wrap;
+            font-family: 'Courier New', Courier, monospace;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🤖 Programação em blocos para Carrinho Arduino</h1>
+    <p>Arraste os blocos de comando para montar a lógica do seu carrinho.</p>
+
+    <div id="container">
+        <!-- Área onde os blocos serão arrastados -->
+        <div id="blocklyDiv"></div>
+        
+        <!-- Área onde o código Arduino final será exibido -->
+        <div>
+            <h3>Código Arduino Gerado:</h3>
+            <div id="codeDiv">// Seu código aparecerá aqui...</div>
+        </div>
+    </div>
+
+    <!-- Definição da "Toolbox" (Gaveta de Blocos) -->
+    <xml id="toolbox" style="display: none">
+        <category name="Movimentos" colour="#5b67a5">
+            <block type="mover_frente"></block>
+            <block type="mover_tras"></block>
+            <block type="parar_motores"></block>
+        </category>
+        <category name="Tempo" colour="#a55b5b">
+            <block type="esperar_tempo"></block>
+        </category>
+    </xml>
+
+    <script>
+        // 1. CRIANDO OS BLOCOS CUSTOMIZADOS DO CARRINHO
+        Blockly.Blocks['mover_frente'] = {
+            init: function() {
+                this.appendDummyInput().appendField("🚗 Mover para FRENTE");
+                this.setPreviousStatement(true, null);
+                this.setNextStatement(true, null);
+                this.setColour(120);
+            }
+        };
+
+        Blockly.Blocks['mover_tras'] = {
+            init: function() {
+                this.appendDummyInput().appendField(" Reverse Mover para TRÁS");
+                this.setPreviousStatement(true, null);
+                this.setNextStatement(true, null);
+                this.setColour(0);
+            }
+        };
+
+        Blockly.Blocks['parar_motores'] = {
+            init: function() {
+                this.appendDummyInput().appendField("🛑 PARAR Motores");
+                this.setPreviousStatement(true, null);
+                this.setNextStatement(true, null);
+                this.setColour(250);
+            }
+        };
+
+        Blockly.Blocks['esperar_tempo'] = {
+            init: function() {
+                this.appendDummyInput()
+                    .appendField("⏱️ Esperar por")
+                    .appendField(new Blockly.FieldNumber(2, 0), "SEGUNDOS")
+                    .appendField("segundo(s)");
+                this.setPreviousStatement(true, null);
+                this.setNextStatement(true, null);
+                this.setColour(45);
+            }
+        };
+
+        // 2. GERADORES DE CÓDIGO ARDUINO PARA CADA BLOCO
+        const arduinoGenerator = new Blockly.Generator('ARDUINO');
+        
+        // Define as regras de indentação e espaçamento
+        arduinoGenerator.ORDER_ATOMIC = 0;
+
+        arduinoGenerator['mover_frente'] = function(block) {
+            return "  // Mover para frente\n  digitalWrite(8, HIGH);\n  digitalWrite(9, LOW);\n  digitalWrite(10, HIGH);\n  digitalWrite(11, LOW);\n";
+        };
+
+        arduinoGenerator['mover_tras'] = function(block) {
+            return "  // Mover para tras\n  digitalWrite(8, LOW);\n  digitalWrite(9, HIGH);\n  digitalWrite(10, LOW);\n  digitalWrite(11, HIGH);\n";
+        };
+
+        arduinoGenerator['parar_motores'] = function(block) {
+            return "  // Parar motores\n  digitalWrite(8, LOW);\n  digitalWrite(9, LOW);\n  digitalWrite(10, LOW);\n  digitalWrite(11, LOW);\n";
+        };
+
+        arduinoGenerator['esperar_tempo'] = function(block) {
+            const segundos = block.getFieldValue('SEGUNDOS');
+            const milissegundos = segundos * 1000;
+            return "  delay(" + milissegundos + ");\n";
+        };
+
+        // 3. INICIALIZAR O WORKSPACE DO BLOCKLY
+        const workspace = Blockly.inject('blocklyDiv', {
+            toolbox: document.getElementById('toolbox'),
+            scrollbars: true
+        });
+
+        // 4. FUNÇÃO PARA ATUALIZAR O CÓDIGO NA TELA
+        function atualizarCodigo() {
+            // Estrutura básica do Arduino que envelopa os blocos colocados no loop
+            let codigoDefinicoes = "// Pinos configurados automaticamente: 8, 9, 10, 11\nvoid setup() {\n  pinMode(8, OUTPUT);\n  pinMode(9, OUTPUT);\n  pinMode(10, OUTPUT);\n  pinMode(11, OUTPUT);\n}\n\nvoid loop() {\n";
+            
+            // Gera o código a partir dos blocos arrastados
+            let codigoBlocos = arduinoGenerator.workspaceToCode(workspace);
+            
+            let codigoFinal = codigoDefinicoes + codigoBlocos + "}";
+            
+            document.getElementById('codeDiv').innerText = codigoFinal;
+        }
+
+        // Executa a atualização sempre que o usuário mexer em algum bloco
+        workspace.addChangeListener(atualizarCodigo);
+    </script>
+</body>
+</html>
